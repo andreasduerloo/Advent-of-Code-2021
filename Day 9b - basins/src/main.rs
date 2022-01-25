@@ -3,7 +3,7 @@ use std::fs;
 // Second star
 // Every low point has exactly one basin. Basins are bordered by nines.
 // Plan:
-// 1_ Find all low points and flag give them a
+// 1_ Find all low points and give them a flag
 // 2_ Loop over all points, if they're a ridge, move on, if they aren't, check if a neighbor has a number
 // If the neighbor has a number, copy it into that point
 // Repeat until no squares are left without a number
