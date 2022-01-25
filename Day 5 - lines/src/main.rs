@@ -1,14 +1,12 @@
 use std::fs;
 
-// NOTE: Full of loops and all the data lives on the heap. Extremely slow.
+// NOTE: Full of loops and all the data lives on the heap. Continually has to recreate the vector. Extremely slow.
 // Can't put a 1000 x 1000 array of u8's on the stack though -> stack overflow
 // Could change the coordinates to u16's and the vents to u8's to save on memory.
 
-// Refactoring:
+// TO DO: Refactoring:
 // 1000 x 1000 Vector of u8's, representing how many lines pass through the point
 // Add columns and rows of margin to simplify the code
-// if let instead of indexing (if let Some(var) = array.get(i))
-// release build
 
 struct Point {
     x: u32,
