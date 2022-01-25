@@ -1,340 +1,182 @@
 use std::fs;
 
+// First star
+// Plan: loop through the line and keep track of the last 'opened' bracket, the next closing bracket must match this one.
+// If a closing bracket matches the last opened bracket, we go one back in the 'history' of opened brackets
+// That bracket becomes the new 'last opened bracket'
+// Like a pop/push mechanism -> use a vector
+
 // Second star
-// Every low point has exactly one basin. Basins are bordered by nines.
-// Plan:
-// 1_ Find all low points and flag give them a
-// 2_ Loop over all points, if they're a ridge, move on, if they aren't, check if a neighbor has a number
-// If the neighbor has a number, copy it into that point
-// Repeat until no squares are left without a number
-// Count occurences of numbers
+// Adapt the code for the first star so that it dumps incomplete lines in a new vector
+// Loop through those lines, and at the end start unwinding the stack, storing the needed element in an output vector
+// Calculate the value of the output vector, store that value in another new vector
+// Find the middle value of the last vector
 
 fn main() {
-    // Populate the base grid:
-    let mut grid: [[u8; 100]; 100] = [[0; 100]; 100];
-
     let contents = fs::read_to_string("input.txt").expect("Could not read file"); 
     let line_vec: Vec<&str> = contents.lines().collect();
 
-    for index in 0..line_vec.len() { // Looping over the lines
-        let temp_vec: Vec<&str> = line_vec[index].split("").collect();
-        let mut charcount: usize = 0;
+    let left_brackets: [&str; 4] = ["(", "[", "{", "<"];
+    let right_brackets: [&str; 4] = [")", "]", "}", ">"];
 
-        let valid_characters = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]; // Trim the newlines
+    let mut running_count: u32 = 0;
 
-        for character in temp_vec { // Looping over the chars in each &str as &str
-            if valid_characters.contains(&character) {
-                *&mut grid[index][charcount] = character.parse().unwrap();
-                *&mut charcount += 1;
+    let mut second_star_vec: Vec<&str> = Vec::new();
+
+    for index in 0..line_vec.len() {
+        let mut error: bool = false;
+
+        let temp_vec: Vec<&str> = line_vec[index].split("").collect(); // Or can we directly loop over characters?
+
+        let mut stack: Vec<&str> = Vec::new();
+
+        for character in &temp_vec {
+            if left_brackets.contains(character) {
+                let _ = &mut stack.push(character);
+            } else if right_brackets.contains(character) { // It's a closing bracket - compare it with the top of the stack
+                let to_check: &str = &stack[stack.len() - 1];
+                if match_brackets(&to_check, character) {
+                    let _ = &mut stack.pop();
+                    continue;
+                } else {
+                    // println!("Line {}: {} and {} don't match", index, to_check, character);
+                    // println!("Adding {}", value(character));
+                    *&mut running_count += value(character);
+                    *&mut error = true;
+                    break;
+                }
+            } else { // We've reached the newline character
+                continue;
             }
         }
-    }
-
-    // Declare a grid of u16's.
-    // Ridge = 0xFFFF
-    // Undiscovered = 0x0FFF
-    // Low points = 0x0000 -> 0x0FFE
-
-    let mut basin_grid: [[u16; 100]; 100] = [[0x0FFF; 100]; 100];
-
-    // Find the low points and ridges and copy them to the u16 grid
-
-    let mut basin_id: u16 = 0x0000;
-
-    for x in 0..100 {
-        for y in 0..100 {
-            draw_grid(x, y, &grid, &mut basin_grid, &mut basin_id);
+        if error == false {
+            // println!("Keeping line {} for the second star.", index);
+            let _ = &mut second_star_vec.push(line_vec[index]);
         }
     }
 
-    // Grid is drawn, time let the magic work
+    println!("--- ⭐ First Star ⭐ ---");
+    println!("The current score is: {}", running_count);
 
-    println!("The grid has been drawn - there were {} lowest points.", basin_id);
+    // println!("There are {} elements in the second star vector.", second_star_vec.len());
 
-    let mut unknowns: u32 = count_unknowns(&basin_grid);
+    // Second star
 
-    while unknowns != 0 {
-        for x in 0..100 {
-            for y in 0..100 {
-                change_neighbors(x, y, &mut basin_grid)
-            }
-        }
-        *&mut unknowns = count_unknowns(&basin_grid);
-        println!("Last pass there were {} unknowns left.", &unknowns);
-    }
-    println!("All done!");
+    let mut score_vec: Vec<u64> = Vec::new();
 
-    // Now we have to count how often each of the basins appears
+    for index in 0..second_star_vec.len() {
+        let temp_vec: Vec<&str> = second_star_vec[index].split("").collect();
 
-    let mut basin_arr: [u32; 226] = [0; 226];
+        let mut stack: Vec<&str> = Vec::new();
 
-    for index in 0..226 {
-        for x in 0..100 {
-            for y in 0..100 {
-                if *&basin_grid[x][y] == index {
-                    *&mut basin_arr[index as usize] += 1;
+        for character in &temp_vec {
+            if left_brackets.contains(character) {
+                let _ = &mut stack.push(character);
+            } else if right_brackets.contains(character) { // It's a closing bracket - compare it with the top of the stack
+                let to_check: &str = &stack[stack.len() - 1];
+                if match_brackets(&to_check, character) {
+                    let _ = &mut stack.pop();
+                    continue;
+                } else {
+                    println!("There's been an issue: there's an error in the second star vector.")
+                }
+            } else { // We've reached the newline character, unwind the stack
+                let mut temp_score: u64 = 0;
+                for pos in 0..stack.len() {
+                    *&mut temp_score = (temp_score * 5) + close_bracket(stack[stack.len() - (pos + 1)]);
+                    // println!("Debug, temp score is now: {}", temp_score);
+                }
+                if temp_score != 0 {
+                    let _ = &mut score_vec.push(temp_score);
                 }
             }
         }
     }
 
-    let answer: u32 = product_of_three_biggest(&basin_arr);
+    // println!("There are {} elements in the score vector", score_vec.len());
 
-    println!("-- ⭐ Second Star ⭐ --");
-    println!("The product is: {}", answer);
+    let middle_score: u64 = find_middle(&mut score_vec);
 
-    three_biggest(&basin_arr);
+    println!("--- ⭐ Second Star ⭐ ---");
+    println!("The middle score is: {}", middle_score);
 
 }
 
-fn draw_grid(x: usize, y: usize, source_grid: &[[u8; 100]; 100], destination_grid: &mut [[u16; 100]; 100], index: &mut u16) {
-    if source_grid[x][y] == 9 { // This place is a ridge, draw it and exit
-        destination_grid[x][y] = 0xFFFF;
-        return;
+fn match_brackets(left: &str, right: &str) -> bool {
+    if left == "(" && right == ")" || left == "[" && right == "]" || left == "{" && right == "}" || left == "<" && right == ">" {
+        return true;
+    } else {
+        return false;
     }
-    if x == 0 && y == 0 { // Corner 1
-        if source_grid[x][y] < source_grid[x][y + 1] && source_grid[x][y] < source_grid[x + 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if x == 0 && y == 99 { // Corner 2
-        if source_grid[x][y] < source_grid[x][y - 1] && source_grid[x][y] < source_grid[x + 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if x == 99 && y == 0 { // Corner 3
-        if source_grid[x][y] < source_grid[x][y + 1] && source_grid[x][y] < source_grid[x - 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if x == 99 && y == 99 { // Corner 4
-        if source_grid[x][y] < source_grid[x][y - 1] && source_grid[x][y] < source_grid[x - 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if x == 0 { // Top edge
-        if source_grid[x][y] < source_grid[x][y - 1] && source_grid[x][y] < source_grid[x][y + 1] && source_grid[x][y] < source_grid[x + 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if x == 99 { // Bottom edge
-        if source_grid[x][y] < source_grid [x][y - 1] && source_grid[x][y] < source_grid[x][y + 1] && source_grid[x][y] < source_grid[x - 1][y] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        } 
-    } else if y == 0 { // Left edge
-        if source_grid[x][y] < source_grid [x - 1][y] && source_grid[x][y] < source_grid[x + 1][y] && source_grid[x][y] < source_grid[x][y + 1] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else if y == 99 { // Right edge
-        if source_grid[x][y] < source_grid [x - 1][y] && source_grid[x][y] < source_grid[x + 1][y] && source_grid[x][y] < source_grid[x][y - 1] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
-        }
-    } else { // All other cases
-        if source_grid[x][y] < source_grid [x - 1][y] && source_grid[x][y] < source_grid[x + 1][y] && source_grid[x][y] < source_grid[x][y - 1] && source_grid[x][y] < source_grid[x][y + 1] {
-            destination_grid[x][y] = *index;
-            *index += 1;
-            return;
-        } else {
-            destination_grid[x][y] = 0x0FFF;
-            return;
+}
+
+fn value(input: &str) -> u32 {
+    match input {
+        ")" => {
+            return 3;
+        },
+        "]" => {
+            return 57;
+        },
+        "}" => {
+            return 1197;
+        },
+        ">" => {
+            return 25137;
+        },
+        _ => {
+            println!("Invalid input: {}", input);
+            return 0;
         }
     }
 }
 
-fn change_neighbors(x: usize, y: usize, grid: &mut[[u16; 100]; 100]) {
-    if grid[x][y] == 0xFFFF { // This is a ridge, bye
-        return;
-    }
-    if grid[x][y] == 0x0FFF { // This is an unknown, bye
-        return;
-    }
-    if x == 0 && y == 0 {
-        if grid[x][y + 1] == 0x0FFF { // It's unknown, set it to own value
-            grid[x][y + 1] = grid[x][y];
+fn close_bracket(input: &str) -> u64 {
+    match input {
+        "(" => {
+            return 1;
+        },
+        "[" => {
+            return 2;
+        },
+        "{" => {
+            return 3;
+        },
+        "<" => {
+            return 4;
+        },
+        _ => {
+            println!("Invalid input: {}", input);
+            return 0;
         }
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-    } else if x == 0 && y == 99 { // Corner 2
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y];
-        }
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-    } else if x == 99 && y == 0 { // Corner 3
-        if grid[x][y + 1] == 0x0FFF {
-            grid[x][y + 1] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y];
-        }
-    } else if x == 99 && y == 99 { // Corner 4
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y];
-        }
-    } else if x == 0 { // Top edge
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y];
-        }
-        if grid[x][y + 1] == 0x0FFF {
-            grid[x][y + 1] = grid[x][y];
-        }
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-    } else if x == 99 { // Bottom edge
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y];
-        }
-        if grid[x][y + 1] == 0x0FFF {
-            grid[x][y + 1] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y]; 
-        }
-    } else if y == 0 { // Left edge
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y];
-        }
-        if grid[x][y + 1] == 0x0FFF {
-            grid[x][y + 1] = grid[x][y]; 
-        } 
-    } else if y == 99 { // Right edge
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y];
-        }
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y]; 
-        }
-    } else { // All other cases
-        if grid[x + 1][y] == 0x0FFF {
-            grid[x + 1][y] = grid[x][y];
-        }
-        if grid[x - 1][y] == 0x0FFF {
-            grid[x - 1][y] = grid[x][y];
-        }
-        if grid[x][y - 1] == 0x0FFF {
-            grid[x][y - 1] = grid[x][y]; 
-        }
-        if grid[x][y + 1] == 0x0FFF {
-            grid[x][y + 1] = grid[x][y];
-        }
-    }
+    } 
 }
 
-fn count_unknowns(grid: &[[u16; 100]; 100]) -> u32 {
-    let mut output: u32 = 0;
-    for x in 0..100 {
-        for y in 0..100 {
-            if grid[x][y] == 0x0FFF {
-                *&mut output += 1;
+fn find_middle(input_vec: &mut Vec<u64>) -> u64 {
+    while input_vec.len() != 1 {
+        let mut smallest: u64 = u64::MAX;
+        let mut smallest_index: usize = 0;
+        let mut largest: u64 = 0;
+        let mut largest_index: usize = 0;
+
+        for index in 0..input_vec.len() {
+            if input_vec[index] > largest {
+                *&mut largest = input_vec[index];
+                *&mut largest_index = index;
+            }
+            if input_vec[index] < smallest {
+                *&mut smallest = input_vec[index];
+                *&mut smallest_index = index;
             }
         }
-    }
-    return output;
-}
 
-fn product_of_three_biggest(input: &[u32; 226]) -> u32 {
-    let mut third: u32 = 0;
-    let mut second: u32 = 0;
-    let mut first: u32 = 0;
-
-    for number in input { // Find the biggest
-        if *number > first {
-            *&mut first = *number;
+        if largest_index > smallest_index { // Removing an element to the left of the other first messes with the indices
+            input_vec.remove(largest_index);
+            input_vec.remove(smallest_index);
+        } else {
+            input_vec.remove(smallest_index);
+            input_vec.remove(largest_index);
         }
     }
-
-    for number in input { // Find the second
-        if *number == first {
-            continue;
-        } else if *number > second {
-            *&mut second = *number;
-        }
-    }
-
-    for number in input { // Find the third
-        if *number == first || *number == second {
-            continue;
-        } else if *number > third {
-            *&mut third = *number;
-        }
-    }
-
-    return first * second * third;
-}
-
-fn three_biggest(input: &[u32; 226]) {
-    let mut third: u32 = 0;
-    let mut second: u32 = 0;
-    let mut first: u32 = 0;
-
-    for number in input { // Find the biggest
-        if *number > first {
-            *&mut first = *number;
-        }
-    }
-
-    for number in input { // Find the second
-        if *number == first {
-            continue;
-        } else if *number > second {
-            *&mut second = *number;
-        }
-    }
-
-    for number in input { // Find the third
-        if *number == first || *number == second {
-            continue;
-        } else if *number > third {
-            *&mut third = *number;
-        }
-    }
-
-    println!("{} {} {}", first, second, third);
+    return input_vec[0];
 }
