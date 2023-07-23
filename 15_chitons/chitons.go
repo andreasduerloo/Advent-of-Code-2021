@@ -21,7 +21,9 @@ func main() {
 	/*
 		The answer is right, but it's a dumb brute force that takes way too long (WELL over 10s). Ideas for optimization:
 		- Use a min-heap to get the next node
-		- Dijkstra the initial map, and only initialize the next part when we get to a border. Keep 'creating' the map as we reach borders.
+			- Safe assumption that I'm wasting time looping through ALL 250K nodes, looking for the next one to pick, EVERY time)
+		- Dijkstra the initial map, and only initialize the next part when we get to a border. Keep 'creating' the map as we reach borders
+			- Sounds complicated, try the other idea first
 	*/
 
 	biggraph := buildbiggrid(lines)
