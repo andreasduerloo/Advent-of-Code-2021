@@ -157,7 +157,7 @@ func bigdijkstra(graph *[250000]*node, start *node, goal *node) int {
 	current.visited = true
 	visited := 1
 
-	heap := heapinit()
+	heap := heapinit() // There's nothing in the heap on the first pass
 
 	for visited < 250000 {
 		for _, neighbor := range current.neighbors { // Set or update tentative distances for current neighbors
